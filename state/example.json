@@ -1,0 +1,9 @@
+{
+  "$schema": "rulealize/state/v1",
+  "ruleSet": "Rulealize.RuleSet.Exchange@1.0.0",
+
+  "data": {
+    "ours":   { "data": { "offers": ["deed", "keys"], "offered": null, "stage": "empty" } },
+    "theirs": { "data": { "offers": ["payment"],      "offered": null, "stage": "empty" } }
+  }
+}

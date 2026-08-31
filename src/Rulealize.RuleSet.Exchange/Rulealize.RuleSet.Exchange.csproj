@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    A package that distributes documents, so it carries no assembly at all. What each of the
+    four properties below is for is in the registry's guide:
+    https://github.com/reny-develop/Rulealize.Registry/blob/main/doc/publish.md
+
+    Two documents, and the glob is safe here for the reason it is not safe in a repository
+    whose components are fetched: both of these are ours and `restore` writes what a `uses`
+    names into `component`, which is not this folder. `Exchange` holds `Exchange.Side` twice
+    and `Side` ships with it, named under it, because it is part of this rule set rather than
+    a rule set of its own.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <EnableDefaultItems>false</EnableDefaultItems>
+
+    <PackageId>Rulealize.RuleSet.Exchange</PackageId>
+    <Version>1.0.0</Version>
+
+    <Authors>Reny</Authors>
+    <Description>Two parties, each offering something, and neither committed until both are. A Rulealize rule set, shipped with the half it is built from.</Description>
+    <PackageTags>rulealize;ruleset;exchange;escrow;composition</PackageTags>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/reny-develop/Rulealize.RuleSet.Exchange</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="ruleset/*.json" Pack="true" PackagePath="ruleset/" />
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+</Project>

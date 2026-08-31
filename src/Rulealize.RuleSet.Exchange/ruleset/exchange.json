@@ -1,0 +1,94 @@
+{
+  "$schema": "rulealize/ruleset/v1",
+  "id": "Rulealize.RuleSet.Exchange",
+  "version": "1.0.0",
+
+  // Two parties, each offering something, and neither committed until both are.
+  //
+  // It holds `Rulealize.RuleSet.Exchange.Side` twice — once as each party — and consists
+  // entirely of the two guards that neither side could write. No state of its own and no
+  // inputs of its own: every move offered is one of theirs, under the name this document
+  // calls them by.
+  //
+  // ── Why the same rule set twice ──
+  //
+  // The two sides are the same machine. `uses` may name one rule set more than once under a
+  // different `as` each time, and each alias gets a state field of its own — so two parties
+  // cost one document rather than two that would drift apart the first time either changed.
+  //
+  // ── The two guards ──
+  //
+  // **Nobody commits alone.** `confirm` waits for the other side to have offered. Without it a
+  // party could commit against nothing and be bound while the other decided at leisure.
+  //
+  // **Nobody is left holding it.** Once one side has confirmed, the other may no longer
+  // withdraw. Without it the first to commit could be walked away from, which is exactly the
+  // risk that makes people want an escrow rather than a promise.
+  //
+  // Neither is expressible in `Side`. It has never heard of a counterparty, and that is not a
+  // shortcoming: it is what makes a walk of one side alone an upper bound on what it does
+  // inside anything holding it.
+  //
+  // ── What it does not do ──
+  //
+  // Nothing is driven with `fires`. Confirming is two decisions by two parties, and making
+  // them one transition would model a process where somebody agreed on the other's behalf.
+  //
+  // Nothing here settles what happens after. An exchange that is `exchanged` is a fact; the
+  // deed changing hands is a holder's business, and this document has no opinion about it.
+
+  "requires": [
+    { "plugin": "Rulealize.Plugin.State",      "version": "^1.0" },
+    { "plugin": "Rulealize.Plugin.Comparison", "version": "^1.0" },
+    { "plugin": "Rulealize.Plugin.Record",     "version": "^1.0" },
+    { "plugin": "Rulealize.Plugin.Logic",      "version": "^1.0" }
+  ],
+
+  "uses": [
+    { "ruleSet": "Rulealize.RuleSet.Exchange.Side", "version": "^1.0", "as": "ours"   },
+    { "ruleSet": "Rulealize.RuleSet.Exchange.Side", "version": "^1.0", "as": "theirs" }
+  ],
+
+  "held": {
+    "ours": {
+      "confirm": {
+        "when": { "op": "cmp.ne", "right": "empty",
+                  "left": { "op": "rec.at", "record": "$theirs", "key": "stage" } }
+      },
+      "withdraw": {
+        "when": { "op": "cmp.ne", "right": "confirmed",
+                  "left": { "op": "rec.at", "record": "$theirs", "key": "stage" } }
+      }
+    },
+
+    // The same, mirrored. Written out rather than shared through a definition, because a
+    // definition would have to take the alias as an argument and `held` is read by somebody
+    // checking that the two sides are treated alike — which is easier to see when they are
+    // side by side than when they are one expression called twice.
+    "theirs": {
+      "confirm": {
+        "when": { "op": "cmp.ne", "right": "empty",
+                  "left": { "op": "rec.at", "record": "$ours", "key": "stage" } }
+      },
+      "withdraw": {
+        "when": { "op": "cmp.ne", "right": "confirmed",
+                  "left": { "op": "rec.at", "record": "$ours", "key": "stage" } }
+      }
+    }
+  },
+
+  // Both, and read rather than inherited: a composite never consults a component's `terminal`,
+  // and `Side` has none anyway — one side being confirmed is not an ending of anything.
+  "terminal": {
+    "when": {
+      "op": "logic.and",
+      "all": [
+        { "op": "cmp.eq", "right": "confirmed",
+          "left": { "op": "rec.at", "record": "$ours", "key": "stage" } },
+        { "op": "cmp.eq", "right": "confirmed",
+          "left": { "op": "rec.at", "record": "$theirs", "key": "stage" } }
+      ]
+    },
+    "result": "exchanged"
+  }
+}

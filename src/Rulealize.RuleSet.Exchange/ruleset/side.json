@@ -1,0 +1,84 @@
+{
+  "$schema": "rulealize/ruleset/v1",
+  "id": "Rulealize.RuleSet.Exchange.Side",
+  "version": "1.0.0",
+
+  // One party's half of an exchange: what they may offer, what they did, and whether they
+  // have committed to it.
+  //
+  // ── This is not a rule set of its own ──
+  //
+  // It is named under `Rulealize.RuleSet.Exchange` and ships in that package, because a side
+  // of nothing is not a thing anybody wants. Publishing it separately would spend a permanent
+  // public name on an implementation detail, and the prefix is what makes shipping it here
+  // safe: the package identifier is nuget.org's, so everything under it is allocated too, and
+  // no other package can ever ship this identifier.
+  //
+  // ── It knows nothing about a counterparty ──
+  //
+  // Deliberately, and it is the reason the composite is worth writing. This document can say
+  // *I have offered* and *I have committed*; it cannot say *not until they have*, because it
+  // has never heard of them. Both of those guards are in `Exchange`, over both states at once.
+  //
+  // Which also means a walk of this document alone is an upper bound on what it does inside
+  // the composite: three stages, and every transition between them is here.
+  //
+  // ── `withdraw` clears what was offered ──
+  //
+  // Rather than leaving it and relying on `stage`. A field that is only meaningful in some
+  // stages is a field somebody reads in the wrong one, and there is nothing to gain by
+  // remembering an offer that was taken back — the case is not an audit log and the holder
+  // is what would keep one.
+
+  "requires": [
+    { "plugin": "Rulealize.Plugin.TypeSchema", "version": "^1.0" },
+    { "plugin": "Rulealize.Plugin.State",      "version": "^1.0" },
+    { "plugin": "Rulealize.Plugin.Comparison", "version": "^1.0" },
+    { "plugin": "Rulealize.Plugin.Binding",    "version": "^1.0" }
+  ],
+
+  "state": {
+    "schema": {
+      // What this side may put up. The instance, not the domain: a conveyance and a trade are
+      // two state documents and this one rule set.
+      "offers": { "op": "type.list", "element": { "op": "type.string", "minLength": 1 } },
+
+      "offered": { "op": "type.string", "minLength": 1, "nullable": true },
+      "stage": { "op": "type.enum", "values": ["empty", "offered", "confirmed"] }
+    },
+
+    // Nothing on offer, which offers no move. A held rule set opens where it opens, so an
+    // instance written here would be forced on every exchange that ever held this.
+    "initial": { "offers": [], "offered": null, "stage": "empty" }
+  },
+
+  "inputs": {
+    "offer": {
+      "params": { "item": { "domain": "$offers" } },
+      "when": { "op": "cmp.eq", "left": "$stage", "right": "empty" },
+      "effects": [
+        { "op": "state.set", "path": "offered", "value": "@item" },
+        { "op": "state.set", "path": "stage", "value": "offered" }
+      ]
+    },
+
+    "withdraw": {
+      "when": { "op": "cmp.eq", "left": "$stage", "right": "offered" },
+      "effects": [
+        { "op": "state.set", "path": "offered", "value": null },
+        { "op": "state.set", "path": "stage", "value": "empty" }
+      ]
+    },
+
+    // One way. There is no unconfirm, because the whole value of confirming is that the other
+    // side can rely on it — and a composite that wants one has a different process, not this
+    // one with a hole in it.
+    "confirm": {
+      "when": { "op": "cmp.eq", "left": "$stage", "right": "offered" },
+      "effects": [ { "op": "state.set", "path": "stage", "value": "confirmed" } ]
+    }
+  }
+
+  // No `terminal`. A side being confirmed is not an ending — the exchange is over when both
+  // are, and that is a question about two of these, which is `Exchange`'s to answer.
+}
